@@ -1,0 +1,2547 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEXO AGI</title>
+
+<link rel="icon" type="image/png" href="nexo.png">
+<link rel="apple-touch-icon" href="nexo.png">
+<meta name="description" content="NEXO AGI — Assistant IA local et interactif.">
+
+<meta property="og:title" content="NEXO AGI">
+<meta property="og:description" content="Assistant d'intelligence artificielle local.">
+<meta property="og:image" content="nexo.png">
+<meta property="og:url" content="https://nexoagi.fr">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ RÉGLAGES RAPIDES ============
+     Change juste ces deux lignes pour ta config :
+     - INTRO_VIDEO_URL : le lien direct vers ta vidéo (mp4)
+     - API_URL est plus bas dans le <script>
+  =========================================== */
+
+  :root{
+    --gris-fonce: #1c1e22;
+    --gris-fonce-2: #24272c;
+    --gris-clair: #e8e9ec;
+    --gris-clair-2: #d3d5da;
+    --accent: #5b8def;
+    --accent-soft: rgba(91,141,239,0.16);
+    --texte-clair: #f2f3f5;
+    --texte-sombre: #1c1e22;
+    --texte-muted: #9a9da5;
+    --bord: #33363d;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--gris-fonce);
+    color: var(--texte-clair);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior: none;
+  }
+
+  #app {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ============ INTRO VIDÉO ============ */
+  #intro {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.6s ease;
+  }
+  #intro.fade-out { opacity: 0; pointer-events: none; }
+  #intro video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* ============ LAYOUT PRINCIPAL ============ */
+  #main {
+    display: flex;
+    height: 100%;
+    width: 100%;
+  }
+
+  /* ============ SIDEBAR / HAMBURGER MENU ============ */
+  #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 78%;
+    max-width: 300px;
+    background: var(--gris-fonce-2);
+    border-right: 1px solid var(--bord);
+    transform: translateX(-105%);
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+  }
+  #sidebar.open { transform: translateX(0); }
+
+  #sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 150;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+  #sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 14px 8px;
+  }
+  .sidebar-title {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    color: var(--texte-clair);
+  }
+
+  #new-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 14px;
+    width: 100%;
+  }
+  #new-chat-btn:active { opacity: 0.8; }
+
+  /* ============ BOUTON NOUVEAUTÉS (ajout) ============ */
+  #news-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gris-fonce);
+    color: var(--gris-clair-2);
+    border: 1px solid var(--bord);
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  #news-btn:active { opacity: 0.8; }
+
+  #chat-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .chat-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: var(--gris-clair-2);
+    cursor: pointer;
+  }
+  .chat-item:active { background: rgba(255,255,255,0.06); }
+  .chat-item.active {
+    background: var(--accent-soft);
+    color: var(--texte-clair);
+  }
+  .chat-item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .chat-item-delete {
+    opacity: 0.5;
+    font-size: 15px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+  .chat-item-delete:active { opacity: 1; }
+
+  .sidebar-footer {
+    padding: 10px 8px 4px 8px;
+    font-size: 11px;
+    color: var(--texte-muted);
+    text-align: center;
+    border-top: 1px solid var(--bord);
+    margin-top: 8px;
+  }
+
+  /* ============ ZONE DE CHAT ============ */
+  #chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background: var(--gris-fonce);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ============ DÉGRADÉ DE FOND (ajout) ============
+     Dégradé unique en bas de l'interface, parfaitement uniforme sur
+     toute la largeur (une seule teinte qui s'estompe progressivement
+     vers le haut, aucune délimitation visible entre les couleurs).
+     Suit automatiquement le thème choisi via var(--accent-soft).
+  =================================================== */
+  #bottom-glow {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: clamp(260px, 55%, 460px);
+    pointer-events: none;
+    z-index: 5;
+    background: linear-gradient(to top,
+      var(--accent-soft) 0%,
+      var(--accent-soft) 10%,
+      transparent 100%);
+    transition: background 0.3s ease;
+  }
+
+  #topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--bord);
+    background: var(--gris-fonce);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  #hamburger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--gris-fonce-2);
+    border: 1px solid var(--bord);
+    padding: 9px 8px;
+  }
+  #hamburger-btn span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: var(--gris-clair-2);
+    border-radius: 2px;
+  }
+
+  #topbar-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--texte-clair);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #topbar-sub {
+    font-size: 11.5px;
+    color: var(--texte-muted);
+    margin-top: 1px;
+  }
+
+  /* ============ MESSAGES ============ */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .msg-row {
+    display: flex;
+    width: 100%;
+  }
+  .msg-row.user { justify-content: flex-end; }
+  .msg-row.ia { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 80%;
+    padding: 11px 15px;
+    border-radius: 18px;
+    font-size: 15px;
+    line-height: 1.42;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .bubble.user {
+    background: var(--gris-clair);
+    color: var(--texte-sombre);
+    border-bottom-right-radius: 6px;
+  }
+
+  .bubble.ia {
+    background: var(--gris-fonce-2);
+    color: var(--texte-clair);
+    border: 1px solid var(--bord);
+    border-bottom-left-radius: 6px;
+  }
+
+  /* ============ BADGE DE RÉACTION EMOJI (ajout) ============
+     Petite bulle ronde affichée uniquement sous le message de
+     L'UTILISATEUR, quand l'IA renvoie une réaction pour ce message.
+  =========================================================== */
+  .bubble { position: relative; }
+
+  .reaction-badge {
+    position: absolute;
+    bottom: -11px;
+    right: 12px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 3px;
+    border-radius: 50%;
+    background: var(--gris-fonce-2);
+    border: 1px solid var(--bord);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+    pointer-events: none;
+  }
+
+  /* ============ BLOCS DE CODE + BOUTON COPIER (ajout) ============
+     Dans les réponses de l'IA, le code détecté (```lang ... ```)
+     est isolé du texte dans une zone dédiée, avec bouton copier.
+  ================================================================= */
+  .bubble.has-code {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bubble-text-part {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .code-block {
+    margin: 2px 0;
+    background: #16181b;
+    border: 1px solid var(--bord);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 6px 12px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--bord);
+  }
+
+  .code-block-lang {
+    font-size: 11px;
+    color: var(--texte-muted);
+    letter-spacing: 0.3px;
+    text-transform: lowercase;
+  }
+
+  .code-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 5px;
+    border-radius: 6px;
+    color: var(--texte-muted);
+    cursor: pointer;
+  }
+  .code-copy-btn:active { background: rgba(255,255,255,0.08); opacity: 0.7; }
+  .code-copy-btn.copied { color: #4caf7d; }
+
+  .code-block pre {
+    margin: 0;
+    padding: 10px 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .code-block code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #e8e9ec;
+    white-space: pre;
+  }
+
+  /* ============ INDICATEUR "RÉFLÉCHIT" ============ */
+  .thinking-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 15px 8px 6px;
+  }
+
+  .thinking-text-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .thinking-timer {
+    font-size: 11px;
+    color: var(--texte-muted);
+    opacity: 0.7;
+  }
+
+  .thinking-text {
+    font-size: 13.5px;
+    color: var(--texte-muted);
+    font-style: italic;
+  }
+
+  /* ============ ZONE DE SAISIE ============ */
+  #input-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    background: transparent;
+    border-top: 1px solid var(--bord);
+    flex-shrink: 0;
+  }
+
+  /* Bouton + (ajout) */
+  #plus-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--gris-fonce-2);
+    border: 1px solid var(--bord);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--texte-clair);
+  }
+  #plus-btn:active { opacity: 0.8; }
+  #plus-btn svg { width: 20px; height: 20px; }
+
+  #msg-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--gris-fonce-2);
+    border: 1px solid var(--bord);
+    color: var(--texte-clair);
+    border-radius: 20px;
+    padding: 11px 16px;
+    font-size: 15px;
+    resize: none;
+    max-height: 120px;
+    line-height: 1.3;
+    font-family: inherit;
+  }
+  #msg-input:focus { outline: none; border-color: var(--accent); }
+  #msg-input::placeholder { color: var(--texte-muted); }
+
+  #send-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  #send-btn:active { opacity: 0.8; }
+  #send-btn:disabled { opacity: 0.4; }
+  #send-btn svg { width: 19px; height: 19px; }
+
+  /* Empty state */
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+    color: var(--texte-muted);
+  }
+  #empty-state .logo {
+    width: 92px;
+    height: auto;
+    margin-bottom: 14px;
+    opacity: 0.95;
+  }
+  #empty-state p { font-size: 13.5px; max-width: 260px; }
+
+  ::-webkit-scrollbar { width: 0; height: 0; }
+    .ai-disclaimer {
+    font-size: 11px;
+    color: var(--texte-muted);
+    margin-top: 6px;
+    margin-left: 4px;
+    opacity: 0.8;
+  }
+
+  /* Barre d'actions sous une réponse IA (like + copier) (ajout) */
+  .ia-msg-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-top: 6px;
+    margin-left: 2px;
+  }
+  .msg-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 5px;
+    border-radius: 6px;
+    color: var(--texte-muted);
+    cursor: pointer;
+  }
+  .msg-action-btn:active { background: rgba(255,255,255,0.08); opacity: 0.7; }
+  .msg-action-btn.copied { color: #4caf7d; }
+  .msg-like-btn.liked { color: #4a5b8c; }
+  /* Popup Nouveautés */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.active {
+  display: flex;
+}
+.modal-content {
+  background: #1e1e2d;
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #2d2d42;
+  padding-bottom: 8px;
+}
+.close-btn {
+  font-size: 24px;
+  cursor: pointer;
+  color: #aaa;
+}
+.news-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 15px;
+}
+.news-img-card {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: #2a2a3c;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #444;
+}
+.news-img-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ============ FEUILLE "+" (ajout) ============ */
+#plus-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 350;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+#plus-sheet-overlay.open { opacity: 1; pointer-events: auto; }
+
+#plus-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50vh;
+  background: var(--gris-fonce-2);
+  border-top: 1px solid var(--bord);
+  border-radius: 18px 18px 0 0;
+  z-index: 400;
+  transform: translateY(105%);
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#plus-sheet.open { transform: translateY(0); }
+
+#plus-sheet-handle {
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bord);
+  margin-top: 10px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+#plus-sheet-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  color: var(--texte-muted);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ============ BOUTON MODE FLASH (ajout) ============ */
+#flash-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #ffffff;
+  color: #1c1e22;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: inherit;
+}
+#flash-mode-btn:active { opacity: 0.8; }
+
+.flash-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  color: #666666;
+}
+.flash-btn-icon svg { width: 100%; height: 100%; }
+.flash-btn-icon img { width: 100%; height: 100%; object-fit: contain; }
+
+.flash-btn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.flash-btn-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #1c1e22;
+}
+.flash-btn-desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b6d72;
+}
+
+.flash-btn-state {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6b6d72;
+}
+#flash-mode-btn.active .flash-btn-state {
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #1c1e22;
+  color: #ffffff;
+}
+
+/* ============ BOUTON MODE PRO (ajout) ============ */
+#pro-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #ffffff;
+  color: #1c1e22;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: inherit;
+}
+#pro-mode-btn:active { opacity: 0.8; }
+
+#pro-mode-btn.active .flash-btn-state {
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #1c1e22;
+  color: #ffffff;
+}
+
+/* ============ BOUTON MODE ELISA (ajout) ============ */
+#elisa-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #ffffff;
+  color: #1c1e22;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: inherit;
+}
+#elisa-mode-btn:active { opacity: 0.8; }
+
+/* Icône ELISA volontairement plus grande que les autres (logo plus détaillé) */
+#elisa-mode-btn .flash-btn-icon {
+  width: 34px;
+  height: 34px;
+}
+
+#elisa-mode-btn.active .flash-btn-state {
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: #1c1e22;
+  color: #ffffff;
+}
+
+/* Image générée par ELISA dans une bulle de chat (bloc image + bouton télécharger) */
+.elisa-img-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Taille "moyenne" volontaire : ni miniature, ni pleine largeur de bulle */
+.elisa-generated-img {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  border-radius: 14px;
+  margin-top: 8px;
+  border: 1px solid var(--bord);
+  /* Fonctionne avec n'importe quel format d'image (png, jpg, webp, gif, svg...) */
+  object-fit: cover;
+}
+
+/* Petit bouton "Télécharger" sous l'image, au-dessus du disclaimer IA */
+.elisa-img-download {
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+  border: 1px solid var(--bord);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.4;
+}
+.elisa-img-download:active { opacity: 0.7; }
+.elisa-img-download:disabled { opacity: 0.5; cursor: default; }
+
+/* ============ COMPTE & RÉGLAGES (ajout) ============ */
+#account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+#account-row:active { filter: brightness(1.3); }
+
+#account-gear {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--gris-fonce);
+  border: 1px solid var(--bord);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+#account-gear svg { width: 15px; height: 15px; }
+
+#account-username-display {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--gris-clair-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-field-label {
+  font-size: 12px;
+  color: #9a9da5;
+  margin-bottom: 6px;
+  margin-top: 2px;
+}
+
+#username-input {
+  width: 100%;
+  background: #14141f;
+  border: 1px solid #2d2d42;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 18px;
+}
+#username-input:focus { outline: none; border-color: var(--accent); }
+#username-input::placeholder { color: #6b6d72; }
+
+.settings-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #2d2d42;
+  padding-bottom: 10px;
+}
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #9a9da5;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.settings-tab.active {
+  color: #ffffff;
+  background: rgba(255,255,255,0.08);
+}
+.tab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent);
+}
+
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+
+.color-theme-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+.color-swatch-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.color-swatch-btn.selected {
+  border-color: #ffffff;
+}
+.color-swatch-btn.locked {
+  display: none;
+}
+
+.memory-value-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+#memory-slider {
+  width: 100%;
+  margin: 12px 0 8px 0;
+  accent-color: var(--accent);
+}
+#memory-desc {
+  font-size: 12.5px;
+  color: #9a9da5;
+  line-height: 1.45;
+  margin-top: 2px;
+  margin-bottom: 18px;
+  min-height: 34px;
+}
+#clear-memory-btn {
+  width: 100%;
+  background: #ff4d4d;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+#clear-memory-btn:active { opacity: 0.8; }
+#clear-memory-btn:disabled { opacity: 0.6; }
+
+/* ============ NOTIFICATION HAUT D'ÉCRAN (ajout) ============ */
+#top-notice {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5000;
+  padding: 13px 18px;
+  padding-top: max(13px, env(safe-area-inset-top));
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: center;
+  color: #ffffff;
+  background: #b3401f;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  transform: translateY(-110%);
+  transition: transform 0.45s cubic-bezier(.4,0,.2,1);
+}
+#top-notice.show { transform: translateY(0); }
+#top-notice.achievement {
+  background: linear-gradient(90deg,#caa23a,#e8c565);
+  color: #1c1e22;
+}
+/* Notif de remerciement après un like : couleurs non opaques (translucides),
+   suit automatiquement le thème de couleur choisi (var(--accent) / var(--accent-soft)) */
+#top-notice.like {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ============ FINITIONS PRO (surcouche visuelle uniquement) ============ */
+:root{
+  --gris-fonce:#16181c;
+  --gris-fonce-2:#1e2025;
+  --gris-clair:#ececee;
+  --gris-clair-2:#c9ccd2;
+  --texte-muted:#8b8f98;
+  --bord:#2a2d33;
+  --surface-modal:#1b1d22;
+}
+html, body{
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  letter-spacing:-0.005em;
+}
+button{ font-family:inherit; }
+button, .chat-item, .settings-tab, .color-swatch-btn{ transition:background .18s ease, border-color .18s ease, opacity .18s ease, color .18s ease; }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+#msg-input:focus-visible, #username-input:focus-visible{ outline:none; }
+
+/* Plus de halo coloré : fond uni, sobre */
+#bottom-glow{ display:none; }
+#topbar{ padding:11px 14px; }
+#topbar-title{ font-weight:600; letter-spacing:0; }
+#topbar-sub{ font-size:11.5px; }
+
+/* Barre latérale */
+#sidebar{ background:var(--gris-fonce-2); }
+.sidebar-title{ letter-spacing:0; }
+#new-chat-btn{ border-radius:10px; font-weight:600; }
+#news-btn{ border-radius:10px; background:transparent; }
+.chat-item{ border-radius:8px; }
+.chat-item.active{ background:rgba(255,255,255,0.07); box-shadow:inset 2px 0 0 var(--accent); }
+#account-row{ background:transparent; border:1px solid var(--bord); border-radius:10px; }
+#account-row:active{ filter:none; background:rgba(255,255,255,0.05); }
+
+/* Messages */
+#messages{ gap:12px; padding:18px 14px 10px; }
+.bubble{ border-radius:16px; line-height:1.5; font-size:15px; }
+.bubble.user{ border-bottom-right-radius:5px; }
+.bubble.ia{ border-bottom-left-radius:5px; background:var(--gris-fonce-2); }
+.thinking-text{ font-style:normal; }
+.reaction-badge{ box-shadow:none; }
+.code-block{ background:#121417; border-radius:8px; }
+
+/* Zone de saisie */
+#input-bar{ background:var(--gris-fonce); padding-top:12px; }
+#msg-input{ border-radius:22px; }
+#msg-input:focus{ box-shadow:0 0 0 3px var(--accent-soft); }
+#plus-btn{ background:transparent; }
+#send-btn:not(:disabled):active{ transform:scale(.94); }
+
+/* Feuille "+" : cartes sombres cohérentes avec le reste */
+#plus-sheet{ border-radius:16px 16px 0 0; }
+#flash-mode-btn, #pro-mode-btn, #elisa-mode-btn{
+  background:var(--gris-fonce); border:1px solid var(--bord); color:var(--texte-clair); border-radius:12px;
+}
+#flash-mode-btn.active, #pro-mode-btn.active, #elisa-mode-btn.active{ border-color:var(--accent); background:var(--accent-soft); }
+.flash-btn-title{ color:var(--texte-clair); letter-spacing:0.2px; font-weight:600; }
+.flash-btn-desc{ color:var(--texte-muted); }
+.flash-btn-state{ color:var(--texte-muted); font-weight:500; }
+#flash-mode-btn.active .flash-btn-state,
+#pro-mode-btn.active .flash-btn-state,
+#elisa-mode-btn.active .flash-btn-state{ background:var(--accent); color:#fff; }
+
+/* Fenêtres (Nouveautés / Réglages) */
+.modal-overlay{ background:rgba(8,9,11,0.72); }
+.modal-content{ background:var(--surface-modal); border:1px solid var(--bord); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,.45); }
+.modal-header{ border-bottom:1px solid var(--bord); padding-bottom:12px; margin-bottom:14px; }
+.close-btn{
+  border:none !important; background:rgba(255,255,255,0.06); color:var(--gris-clair-2) !important;
+  width:28px !important; height:28px !important; font-size:20px; border-radius:8px !important;
+}
+.close-btn:active{ background:rgba(255,255,255,0.12); }
+.news-img-card{ border:1px solid var(--bord); background:var(--gris-fonce); border-radius:10px; }
+#username-input{ background:var(--gris-fonce); border-color:var(--bord); border-radius:10px; }
+.settings-tabs{ border-bottom-color:var(--bord); }
+.settings-tab{ border-radius:8px; }
+.settings-tab.active{ background:rgba(255,255,255,0.08); }
+.color-swatch-btn{ border:2px solid transparent; box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+.color-swatch-btn.selected{ border-color:#fff; }
+#clear-memory-btn{ background:transparent; color:#ef6b6b; border:1px solid rgba(239,107,107,.5); font-weight:500; }
+#clear-memory-btn:active{ background:rgba(239,107,107,.12); opacity:1; }
+
+/* Notifications */
+#top-notice{ background:#a8401f; box-shadow:0 4px 14px rgba(0,0,0,.3); font-weight:500; }
+#top-notice.achievement{ background:#caa23a; color:#1c1e22; }
+.msg-like-btn.liked{ color:var(--accent); }
+.elisa-generated-img{ border-radius:10px; }
+
+
+/* ============ PIÈCES JOINTES + SÉLECTEUR DE MODÈLE ============ */
+#topbar-text{ flex:1; min-width:0; }
+#topbar-sub{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#model-picker{ position:relative; flex-shrink:0; }
+#model-btn{ display:flex; align-items:center; gap:8px; min-width:132px; padding:7px 10px; background:var(--gris-fonce-2);
+  border:1px solid var(--bord); border-radius:10px; color:var(--texte-clair); font-size:13.5px; font-weight:500; cursor:pointer; }
+#model-btn:active{ background:rgba(255,255,255,0.06); }
+#model-btn .model-stars{ width:18px; height:18px; object-fit:contain; flex-shrink:0; }
+#model-btn-name{ flex:1; text-align:left; white-space:nowrap; }
+#model-btn .chev{ width:14px; height:14px; color:var(--texte-muted); flex-shrink:0; transition:transform .2s ease; }
+#model-btn[aria-expanded="true"] .chev{ transform:rotate(180deg); }
+#model-menu{ display:none; position:absolute; top:calc(100% + 6px); right:0; width:100%; min-width:132px; padding:4px;
+  background:var(--gris-fonce-2); border:1px solid var(--bord); border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,.4); z-index:60; }
+#model-menu.open{ display:block; }
+.model-opt{ display:flex; align-items:center; gap:8px; width:100%; padding:9px 8px; border:none; background:transparent;
+  color:var(--gris-clair-2); border-radius:8px; font-size:13.5px; text-align:left; cursor:pointer; }
+.model-opt svg{ width:16px; height:16px; flex-shrink:0; color:var(--texte-muted); }
+.model-opt.active{ background:rgba(255,255,255,0.08); color:var(--texte-clair); }
+.model-opt.active svg{ color:var(--accent); }
+
+#plus-sheet{ height:auto; padding-bottom:max(14px, env(safe-area-inset-bottom)); }
+#plus-sheet-content{ flex:none; padding:14px 16px 6px; }
+.sheet-btn{ display:flex; align-items:center; gap:12px; width:100%; background:var(--gris-fonce); border:1px solid var(--bord);
+  color:var(--texte-clair); border-radius:12px; padding:12px 14px; text-align:left; cursor:pointer; }
+.sheet-btn:active{ background:rgba(255,255,255,0.05); }
+.sheet-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.sheet-btn .flash-btn-icon{ width:24px; height:24px; }
+
+#input-bar{ flex-wrap:wrap; }
+#attach-preview{ display:none; flex:0 0 100%; padding:4px 0 2px 50px; }
+#attach-preview.show{ display:block; }
+.attach-tile{ position:relative; width:72px; height:72px; }
+.attach-tile > img.thumb{ width:100%; height:100%; object-fit:cover; border-radius:12px; border:1px solid var(--bord); display:block; }
+.attach-remove{ position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%; background:#2f3238; border:1px solid #4a4e57;
+  color:#fff; font-size:14px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; }
+.att-file{ width:72px; height:72px; border-radius:12px; background:var(--gris-fonce-2); border:1px solid var(--bord);
+  display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:7px 6px 6px; }
+.att-file .attach-name{ font-size:10px; line-height:1.2; text-align:center; color:var(--gris-clair-2); max-width:100%; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-all; }
+.att-file .attach-file-icon{ width:26px; height:26px; object-fit:contain; opacity:.75; }
+.msg-attach{ align-self:flex-end; margin-bottom:6px; }
+.msg-attach > img{ display:block; max-width:220px; max-height:220px; border-radius:12px; border:1px solid var(--bord); object-fit:cover; }
+
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+<div id="app">
+
+  <!-- NOTIFICATION HAUT D'ÉCRAN (ajout) -->
+  <div id="top-notice"><span id="top-notice-text"></span></div>
+
+  <!-- INTRO VIDEO -->
+  <div id="intro">
+    <video id="intro-video" autoplay muted playsinline></video>
+  </div>
+
+  <div id="main">
+
+    <div id="sidebar-overlay"></div>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Conversations</span>
+      </div>
+      <button id="news-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Nouveautés · NEXO 1.9 PULSE
+      </button>
+      <button id="new-chat-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Nouvelle conversation
+      </button>
+      <div id="chat-list"></div>
+      <div class="sidebar-footer">NEXO · modèle personnel</div>
+      <!-- COMPTE & GESTION (ajout) -->
+      <div id="account-row">
+        <span id="account-gear">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </span>
+        <span id="account-username-display">Utilisateur</span>
+      </div>
+    </div>
+
+    <!-- CHAT AREA -->
+    <div id="chat-area">
+      <div id="bottom-glow" aria-hidden="true"></div>
+      <div id="topbar">
+        <button id="hamburger-btn"><span></span><span></span><span></span></button>
+        <div id="topbar-text">
+          <div id="topbar-title">NEXO</div>
+          <div id="topbar-sub">toujours prêt à discuter</div>
+        </div>
+        <div id="model-picker">
+          <button id="model-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Choisir le modèle">
+            <img class="model-stars" data-icon="stars" alt="">
+            <span id="model-btn-name">Pro 1.1</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div id="model-menu" role="listbox">
+            <button class="model-opt" type="button" role="option" data-model="pro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M13 8l-2.5 4h3L11 16"/></svg><span>Pro 1.1</span></button>
+            <button class="model-opt" type="button" role="option" data-model="flash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M13 8l-2.5 4h3L11 16"/></svg><span>Flash 0.6</span></button>
+            <button class="model-opt" type="button" role="option" data-model="elisa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M13 8l-2.5 4h3L11 16"/></svg><span>ELISA 0.4</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div id="messages"></div>
+
+      <div id="input-bar">
+        <div id="attach-preview"></div>
+        <button id="plus-btn" aria-label="Ajouter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <textarea id="msg-input" rows="1" placeholder="Écris un message à NEXO..."></textarea>
+        <button id="send-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL NOUVEAUTÉS (ajout) -->
+  <div class="modal-overlay" id="news-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="sidebar-title">Nouveautés · NEXO 1.9 PULSE</span>
+        <span class="close-btn" id="news-close-btn" style="border:2px solid #ff4d4d;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#ff4d4d;line-height:1;">×</span>
+      </div>
+      <p style="font-size:14px;color:#d3d5da;line-height:1.5;">
+[SORTIE LE 16 SEPTEMBRE 2026]
+NEXO 1.9 PULSE marque une nouvelle étape pour NEXO avec plusieurs améliorations clés. Elisa quitte sa phase bêta et passe en version 0.4, avec moins de bugs et de crashs, sans amélioration visuelle pour le moment. NEXO intègre également le retour utilisateur avec le bouton Like, ainsi que la possibilité de copier l’intégralité d’un message généré par une IA.
+      </p>
+      <div class="news-gallery" style="grid-template-columns:1fr;">
+        <div class="news-img-card" style="aspect-ratio:16/9;">
+          <img src="https://i.postimg.cc/rwk0hFRw/file-0000000026348210b766aa922b4940df.png" alt="Démo mise à jour">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL COMPTE & RÉGLAGES (ajout) -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="sidebar-title">Compte & réglages</span>
+        <span class="close-btn" id="settings-close-btn" style="border:2px solid #ff4d4d;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#ff4d4d;line-height:1;">×</span>
+      </div>
+
+      <div class="settings-field-label">Nom d'utilisateur</div>
+      <input id="username-input" type="text" placeholder="Ton prénom ou pseudo" autocomplete="off">
+
+      <div class="settings-tabs">
+        <button class="settings-tab active" data-tab="style" type="button">
+          <span class="tab-dot" id="tab-dot-style"></span>Style & Couleurs
+        </button>
+        <button class="settings-tab" data-tab="ia" type="button">
+          Réglages de l'IA & Mémoire
+        </button>
+      </div>
+
+      <!-- Onglet 1 : Style & Couleurs -->
+      <div class="settings-panel active" id="panel-style">
+        <div class="settings-field-label">Choix couleur d'interface</div>
+        <div class="color-theme-options">
+          <button class="color-swatch-btn selected" data-theme="normal" style="background:#5b8def" type="button" title="Normal" aria-label="Thème normal"></button>
+          <button class="color-swatch-btn" data-theme="orange" style="background:#ff8c42" type="button" title="Orange" aria-label="Thème orange"></button>
+          <button class="color-swatch-btn" data-theme="vert" style="background:#4caf7d" type="button" title="Vert" aria-label="Thème vert"></button>
+          <button class="color-swatch-btn" data-theme="violet" style="background:#9333ea" type="button" title="Violet" aria-label="Thème violet"></button>
+          <button class="color-swatch-btn locked" data-theme="or" style="background:#caa23a" type="button" title="Or (débloqué à 1000 messages envoyés)" aria-label="Thème or"></button>
+        </div>
+      </div>
+
+      <!-- Onglet 2 : Réglages de l'IA & Mémoire -->
+      <div class="settings-panel" id="panel-ia">
+        <div class="settings-field-label">Mémoire de discussion — <span class="memory-value-label" id="memory-value-label">10 messages</span></div>
+        <input type="range" id="memory-slider" min="0" max="3" step="1" value="3">
+        <div id="memory-desc"></div>
+        <button id="clear-memory-btn" type="button">Vider la mémoire</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEUILLE "+" (ajout) -->
+  <div id="plus-sheet-overlay"></div>
+  <div id="plus-sheet">
+    <div id="plus-sheet-handle"></div>
+    <div id="plus-sheet-content">
+      <button id="gallery-btn" class="sheet-btn" type="button" data-desc="Envoie une image depuis ta galerie (1 max)">
+        <span class="flash-btn-icon"><img data-icon="camera" alt=""></span>
+        <span class="flash-btn-text">
+          <span class="flash-btn-title">Galerie</span>
+          <span class="flash-btn-desc">Envoie une image depuis ta galerie (1 max)</span>
+        </span>
+      </button>
+      <button id="file-btn" class="sheet-btn" type="button" data-desc="Image, code, texte… (pas de vidéo)">
+        <span class="flash-btn-icon"><img data-icon="doc" alt=""></span>
+        <span class="flash-btn-text">
+          <span class="flash-btn-title">Fichier</span>
+          <span class="flash-btn-desc">Image, code, texte… (pas de vidéo)</span>
+        </span>
+      </button>
+      <input type="file" id="gallery-input" accept="image/*" hidden>
+      <input type="file" id="file-input" hidden>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+  // ============================================
+  // RÉGLAGES À PERSONNALISER
+  // ============================================
+  const INTRO_VIDEO_URL = "https://files.catbox.moe/s91fna.mp4";
+  const API_URL = "https://api.nexoagi.fr/chat";
+  // ============================================
+  const GREETINGS = [
+  "Salut {user}, on a fait quoi aujourd'hui ?",
+  "Prêt à lancer une nouvelle discussion ?",
+  "Salut {user}",
+  "On a fait quoi aujourd'hui ?",
+  "Un sujet t'intéresse ?",
+  "Tu vas bien, {user} ?"
+];
+
+  const STORAGE_KEY = "nexo_conversations_v1";
+
+  // ---------- Identifiant de session (isole la mémoire de chaque visiteur côté serveur) ----------
+  const SESSION_ID_KEY = "nexo_session_id";
+  function getOrCreateSessionId(){
+    let sid = localStorage.getItem(SESSION_ID_KEY);
+    if (!sid) {
+      sid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sid_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+      localStorage.setItem(SESSION_ID_KEY, sid);
+    }
+    return sid;
+  }
+  const NEXO_SESSION_ID = getOrCreateSessionId();
+
+  // ---------- Intro vidéo ----------
+  const introEl = document.getElementById('intro');
+  const introVideo = document.getElementById('intro-video');
+
+  introVideo.src = INTRO_VIDEO_URL;
+
+  function endIntro(){
+    introEl.classList.add('fade-out');
+    setTimeout(() => { introEl.style.display = 'none'; }, 650);
+  }
+
+  // Se termine après 5 secondes, ou à la fin de la vidéo si plus courte. Pas de skip possible.
+  const introTimer = setTimeout(endIntro, 4000);
+  introVideo.addEventListener('ended', endIntro);
+  introVideo.addEventListener('error', () => { clearTimeout(introTimer); endIntro(); });
+
+  // ---------- State ----------
+  let conversations = loadConversations();
+  let currentChatId = null;
+  let draftChat = null; // conversation en cours de composition, pas encore sauvegardée (pas de message envoyé)
+
+  function loadConversations(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e){ return []; }
+  }
+
+  function saveConversations(){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations)); }
+    catch(e){ console.warn('Sauvegarde impossible (stockage plein)', e); }
+  }
+
+  function getCurrentChat(){
+    if (draftChat && draftChat.id === currentChatId) return draftChat;
+    return conversations.find(c => c.id === currentChatId);
+  }
+
+  function createNewChat(){
+    const chat = {
+      id: 'chat_' + Date.now(),
+      title: 'Nouvelle conversation',
+      messages: [],
+      createdAt: Date.now()
+    };
+    // Le nouveau chat reste en brouillon : il n'est ni ajouté à la liste ni sauvegardé
+    // tant qu'aucun message n'a été envoyé (=> pas de discussion vide sauvegardée).
+    draftChat = chat;
+    currentChatId = chat.id;
+    renderChatList();
+    renderMessages();
+    closeSidebar();
+  }
+
+  function deleteChat(id, evt){
+    evt.stopPropagation();
+    conversations = conversations.filter(c => c.id !== id);
+    saveConversations();
+    if (currentChatId === id) {
+      currentChatId = conversations.length ? conversations[0].id : null;
+      if (!currentChatId) createNewChat();
+    }
+    renderChatList();
+    renderMessages();
+  }
+
+  function selectChat(id){
+    currentChatId = id;
+    draftChat = null;
+    renderChatList();
+    renderMessages();
+    closeSidebar();
+  }
+
+  // ---------- Sidebar ----------
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const hamburgerBtn = document.getElementById('hamburger-btn');
+
+  function openSidebar(){
+    sidebar.classList.add('open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+  hamburgerBtn.addEventListener('click', () => {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  overlay.addEventListener('click', closeSidebar);
+
+  document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
+
+  function renderChatList(){
+    const list = document.getElementById('chat-list');
+    list.innerHTML = '';
+    conversations.forEach(chat => {
+      const item = document.createElement('div');
+      item.className = 'chat-item' + (chat.id === currentChatId ? ' active' : '');
+      item.innerHTML = `
+        <span class="chat-item-title">${escapeHtml(chat.title)}</span>
+        <span class="chat-item-delete">✕</span>
+      `;
+      item.addEventListener('click', () => selectChat(chat.id));
+      item.querySelector('.chat-item-delete').addEventListener('click', (e) => deleteChat(chat.id, e));
+      list.appendChild(item);
+    });
+  }
+
+  // ---------- Messages ----------
+  const messagesEl = document.getElementById('messages');
+  const topbarTitle = document.getElementById('topbar-title');
+
+  function renderMessages(){
+    const chat = getCurrentChat();
+    messagesEl.innerHTML = '';
+
+    // Le titre affiché en haut est TOUJOURS le nom de la marque (NEXO / NEXO FLASH),
+    // jamais le titre de la conversation (basé sur le premier message).
+    topbarTitle.textContent = getBrandName();
+
+    if (!chat || chat.messages.length === 0) {
+      const randomGreeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+      const displayName = (localStorage.getItem(USERNAME_STORAGE_KEY) || '').trim() || 'Utilisateur';
+      const greetingText = randomGreeting.replace(/\{user\}/g, displayName);
+
+      messagesEl.innerHTML = `
+        <div id="empty-state">
+          <img class="logo" src="logo.png" alt="${getBrandName()}" />
+          <p>${escapeHtml(greetingText)}</p>
+        </div>
+      `;
+      return;
+    }
+
+    chat.messages.forEach(m => {
+      const b = appendBubble(m.role, m.content, false, m.image_url || null, m.attachment || null);
+      // Badge de réaction (ajout) : ré-affiché sous le message utilisateur concerné
+      // à chaque rechargement de la discussion, si une réaction avait été reçue.
+      if (m.role === 'user' && m.reaction) {
+        attachReactionBadge(b, m.reaction);
+      }
+    });
+    scrollToBottom();
+  }
+
+    function appendBubble(role, text, scroll=true, imageUrl=null, attachment=null){
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (role === 'user' ? 'user' : 'ia');
+    
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.maxWidth = '80%';
+
+    if (attachment && role === 'user') wrapper.appendChild(createAttachmentBlock(attachment));
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'ia');
+    bubble.style.maxWidth = '100%';
+    if (attachment && role === 'user' && !text) bubble.style.display = 'none';
+    // Réponses de l'IA : détection et isolation des blocs de code (ajout).
+    // Comportement inchangé pour l'utilisateur (texte brut, comme avant).
+    if (role === 'ia') {
+      renderBubbleContent(bubble, text);
+    } else {
+      bubble.textContent = text;
+    }
+    wrapper.appendChild(bubble);
+
+    // Image générée par le mode ELISA, si présente
+    if (imageUrl) {
+      wrapper.appendChild(createElisaImageBlock(imageUrl));
+    }
+
+    // Si c'est l'IA, on ajoute la barre d'actions (like + copier) puis le petit texte pro en dessous
+    if (role === 'ia') {
+      wrapper.appendChild(createIaActionsToolbar(text));
+
+      const disclaimer = document.createElement('div');
+      disclaimer.className = 'ai-disclaimer';
+      disclaimer.textContent = "Cette réponse a été générée par de l'IA et peut contenir de nombreuses erreurs.";
+      wrapper.appendChild(disclaimer);
+    }
+
+    row.appendChild(wrapper);
+    messagesEl.appendChild(row);
+    if (scroll) scrollToBottom();
+    return bubble;
+  }
+
+
+  function scrollToBottom(){
+    requestAnimationFrame(() => {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
+  }
+
+  // ---------- Apparition lettre par lettre (75 caractères/seconde) ----------
+  function typeTextIntoBubble(bubbleEl, text){
+    return new Promise(resolve => {
+      const CHARS_PER_SECOND = 150;
+      const intervalMs = 1000 / CHARS_PER_SECOND;
+      let i = 0;
+      const timer = setInterval(() => {
+        i++;
+        bubbleEl.textContent = text.slice(0, i);
+        scrollToBottom();
+        if (i >= text.length) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, intervalMs);
+    });
+  }
+
+  function appendBubbleAnimated(role, text, imageUrl=null){
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + (role === 'user' ? 'user' : 'ia');
+
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.maxWidth = '80%';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'ia');
+    bubble.style.maxWidth = '100%';
+    bubble.textContent = '';
+    wrapper.appendChild(bubble);
+
+    if (role === 'ia') {
+      wrapper.appendChild(createIaActionsToolbar(text));
+
+      const disclaimer = document.createElement('div');
+      disclaimer.className = 'ai-disclaimer';
+      disclaimer.textContent = "Cette réponse a été générée par de l'IA et peut contenir de nombreuses erreurs.";
+      wrapper.appendChild(disclaimer);
+    }
+
+    row.appendChild(wrapper);
+    messagesEl.appendChild(row);
+    scrollToBottom();
+
+    return typeTextIntoBubble(bubble, text).then(() => {
+      // Une fois la frappe animée terminée, on ré-affiche le contenu de la bulle IA
+      // en isolant les éventuels blocs de code dans leur propre zone (ajout).
+      if (role === 'ia') {
+        renderBubbleContent(bubble, text);
+      }
+      // Image générée par le mode ELISA, ajoutée une fois le texte terminé
+      if (imageUrl) {
+        wrapper.appendChild(createElisaImageBlock(imageUrl));
+        scrollToBottom();
+      }
+      return bubble;
+    });
+  }
+
+  // ---------- Bloc image ELISA (image + bouton "Télécharger") ----------
+  function createElisaImageBlock(imageUrl){
+    const container = document.createElement('div');
+    container.className = 'elisa-img-block';
+
+    const img = document.createElement('img');
+    img.className = 'elisa-generated-img';
+    img.src = imageUrl;
+    img.alt = 'Image générée par ELISA';
+    container.appendChild(img);
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.type = 'button';
+    downloadBtn.className = 'elisa-img-download';
+    downloadBtn.textContent = '⬇ Télécharger';
+    downloadBtn.addEventListener('click', () => downloadElisaImage(imageUrl, downloadBtn));
+    container.appendChild(downloadBtn);
+
+    return container;
+  }
+
+  // Télécharge l'image générée, quel que soit son format (png, jpg, webp, gif, svg, image en data:URL...)
+  async function downloadElisaImage(imageUrl, btn){
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      // Extension déduite du type MIME réel du fichier, pour accepter n'importe quel format
+      let ext = 'png';
+      if (blob.type && blob.type.includes('/')) {
+        ext = blob.type.split('/')[1].split('+')[0];
+      }
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = 'nexo-elisa-' + Date.now() + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Repli si le téléchargement direct échoue (ex: restriction CORS) : ouverture dans un nouvel onglet
+      window.open(imageUrl, '_blank');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ============================================================
+  // ---------- Blocs de code séparés + bouton Copier (ajout) ----------
+  // ============================================================
+  const CODE_FENCE_REGEX = /```(\w*)\n?([\s\S]*?)```/g;
+
+  // Icône "deux pages superposées", simple et discrète, en SVG (currentColor)
+  const ICON_COPY_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/></svg>';
+  const ICON_CHECK_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  // Icône "pouce levé" vectorielle et minimaliste (jamais l'emoji 👍)
+  const ICON_LIKE_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3L7 11v10h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 21H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>';
+
+  // Remplit une bulle IA en séparant proprement le texte et les blocs de code
+  // (```lang ... ```). Si aucun code n'est détecté, comportement inchangé
+  // (bubble.textContent = text), comme avant cet ajout.
+  function renderBubbleContent(bubbleEl, text){
+    CODE_FENCE_REGEX.lastIndex = 0;
+    if (!CODE_FENCE_REGEX.test(text)) {
+      bubbleEl.textContent = text;
+      bubbleEl.classList.remove('has-code');
+      return;
+    }
+    CODE_FENCE_REGEX.lastIndex = 0;
+    bubbleEl.textContent = '';
+    bubbleEl.classList.add('has-code');
+
+    let lastIndex = 0;
+    let match;
+    while ((match = CODE_FENCE_REGEX.exec(text)) !== null) {
+      const before = text.slice(lastIndex, match.index);
+      if (before.replace(/\n/g, '').trim().length > 0) {
+        bubbleEl.appendChild(createBubbleTextPart(before.trim()));
+      }
+      const lang = (match[1] || '').trim();
+      const code = match[2].replace(/\n$/, '');
+      bubbleEl.appendChild(createCodeBlock(code, lang));
+      lastIndex = CODE_FENCE_REGEX.lastIndex;
+    }
+    const after = text.slice(lastIndex);
+    if (after.replace(/\n/g, '').trim().length > 0) {
+      bubbleEl.appendChild(createBubbleTextPart(after.trim()));
+    }
+  }
+
+  function createBubbleTextPart(text){
+    const part = document.createElement('div');
+    part.className = 'bubble-text-part';
+    part.textContent = text;
+    return part;
+  }
+
+  function createCodeBlock(code, lang){
+    const block = document.createElement('div');
+    block.className = 'code-block';
+
+    const header = document.createElement('div');
+    header.className = 'code-block-header';
+
+    const langLabel = document.createElement('span');
+    langLabel.className = 'code-block-lang';
+    langLabel.textContent = lang || 'code';
+    header.appendChild(langLabel);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'code-copy-btn';
+    copyBtn.setAttribute('aria-label', 'Copier le code');
+    copyBtn.innerHTML = ICON_COPY_SVG;
+    copyBtn.addEventListener('click', () => copyCodeBlock(code, copyBtn));
+    header.appendChild(copyBtn);
+
+    block.appendChild(header);
+
+    const pre = document.createElement('pre');
+    const codeEl = document.createElement('code');
+    codeEl.textContent = code;
+    pre.appendChild(codeEl);
+    block.appendChild(pre);
+
+    return block;
+  }
+
+  async function copyCodeBlock(code, btn){
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch (e) {
+      // Repli si l'API presse-papier est indisponible (contexte non sécurisé, permission refusée...)
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch (e2) {
+        console.error('Copie du code impossible', e2);
+        return;
+      }
+    }
+    const original = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = ICON_CHECK_SVG;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = original;
+    }, 1400);
+  }
+
+  // ---------- Barre d'actions sous une réponse IA : like + copier (ajout) ----------
+  function createIaActionsToolbar(fullText){
+    const toolbar = document.createElement('div');
+    toolbar.className = 'ia-msg-actions';
+
+    // Bouton like : icône vectorielle, devient bleu grisâtre une fois activé
+    const likeBtn = document.createElement('button');
+    likeBtn.type = 'button';
+    likeBtn.className = 'msg-action-btn msg-like-btn';
+    likeBtn.setAttribute('aria-label', 'Aimer cette réponse');
+    likeBtn.innerHTML = ICON_LIKE_SVG;
+    likeBtn.addEventListener('click', () => {
+      const dejaLike = likeBtn.classList.contains('liked');
+      likeBtn.classList.toggle('liked');
+      if (!dejaLike) {
+        showTopNotice('Merci pour votre retour !', 'like', 3000);
+        sendLikeToServer();
+      }
+    });
+    toolbar.appendChild(likeBtn);
+
+    // Bouton copier : copie l'intégralité du texte généré par l'IA
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'msg-action-btn';
+    copyBtn.setAttribute('aria-label', 'Copier la réponse');
+    copyBtn.innerHTML = ICON_COPY_SVG;
+    copyBtn.addEventListener('click', () => copyIaMessage(fullText, copyBtn));
+    toolbar.appendChild(copyBtn);
+
+    return toolbar;
+  }
+
+  async function copyIaMessage(text, btn){
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // Repli si l'API presse-papier est indisponible (contexte non sécurisé, permission refusée...)
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch (e2) {
+        console.error('Copie de la réponse impossible', e2);
+        return;
+      }
+    }
+    const original = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = ICON_CHECK_SVG;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = original;
+    }, 1400);
+  }
+
+  async function sendLikeToServer(){
+    try {
+      await fetch(API_URL_LIKE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'like' })
+      });
+    } catch (e) {
+      console.error('Envoi du like impossible', e);
+    }
+  }
+
+  // ============================================================
+  // ---------- Badge de réaction Emoji (ajout) ----------
+  // ============================================================
+  // Ajoute (ou remplace) le badge de réaction sous une bulle UTILISATEUR.
+  function attachReactionBadge(bubbleEl, emoji){
+    if (!bubbleEl || !emoji) return;
+    const existing = bubbleEl.querySelector('.reaction-badge');
+    if (existing) existing.remove();
+    const badge = document.createElement('div');
+    badge.className = 'reaction-badge';
+    badge.textContent = emoji;
+    bubbleEl.appendChild(badge);
+  }
+
+  // ---------- Indicateur "réfléchit" ----------
+  const THINKING_PHRASES = [
+    "je réfléchis",
+    "ok, je comprends !",
+    "ah c'est ça !",
+    "je choisis quelle réponse sera la meilleure",
+    "attends encore un peu",
+    "je choisis les meilleures probabilités",
+    "quelques instants !",
+    "que mettre ici ?",
+    "peut-être ça ? !",
+    "mais oui c'était logique !",
+    "j'affine la réponse",
+    "je regarde s'il n'y a pas d'erreur",
+    "je vais te répondre, attends 2 secondes !",
+    "question périlleuse !",
+    "ok, je me relis"
+  ];
+
+  // Phrases affichées pendant que le mode ELISA génère une image (changent toutes les 3 secondes)
+  const ELISA_LOADING_PHRASES = [
+    "Je dessine, attends",
+    "Un peu de bruit par là",
+    "Je crée l'image"
+  ];
+
+  let thinkingPhraseInterval = null;
+  let thinkingDotsInterval = null;
+  let thinkingTimerInterval = null;
+
+  function showThinking(){
+    const row = document.createElement('div');
+    row.className = 'msg-row ia';
+    row.id = 'thinking-row';
+    row.innerHTML = `
+      <div class="thinking-row">
+        <div class="thinking-text-wrap">
+          <div class="thinking-timer" id="thinking-timer">0 seconde</div>
+          <div class="thinking-text" id="thinking-text"></div>
+        </div>
+      </div>
+    `;
+    messagesEl.appendChild(row);
+    scrollToBottom();
+
+    const timerEl = row.querySelector('#thinking-timer');
+    const textEl = row.querySelector('#thinking-text');
+
+    // En mode ELISA (génération d'image), on affiche des phrases dédiées qui changent
+    // toutes les 3 secondes ; sinon les phrases de réflexion habituelles (toutes les 5 secondes).
+    const phrases = elisaMode ? ELISA_LOADING_PHRASES : THINKING_PHRASES;
+    const phraseChangeMs = elisaMode ? 3000 : 5000;
+
+    let phraseIndex = Math.floor(Math.random() * phrases.length);
+    const dotsCycle = ['.', '..', '...'];
+    let dotsIndex = 0;
+    let elapsedSeconds = 0;
+
+    function updateText(){
+      textEl.textContent = phrases[phraseIndex] + dotsCycle[dotsIndex];
+    }
+    updateText();
+
+    thinkingDotsInterval = setInterval(() => {
+      dotsIndex = (dotsIndex + 1) % dotsCycle.length;
+      updateText();
+    }, 500);
+
+    thinkingPhraseInterval = setInterval(() => {
+      phraseIndex = (phraseIndex + 1) % phrases.length;
+      updateText();
+    }, phraseChangeMs);
+
+    thinkingTimerInterval = setInterval(() => {
+      elapsedSeconds++;
+      timerEl.textContent = elapsedSeconds + (elapsedSeconds > 1 ? ' secondes' : ' seconde');
+    }, 1000);
+  }
+
+  function hideThinking(){
+    const row = document.getElementById('thinking-row');
+    if (row) row.remove();
+    clearInterval(thinkingPhraseInterval);
+    clearInterval(thinkingDotsInterval);
+    clearInterval(thinkingTimerInterval);
+  }
+
+  // ---------- Modal Nouveautés (ajout) ----------
+  const newsBtn = document.getElementById('news-btn');
+  const newsModal = document.getElementById('news-modal');
+  const newsCloseBtn = document.getElementById('news-close-btn');
+
+  newsBtn.addEventListener('click', () => {
+    newsModal.classList.add('active');
+  });
+  newsCloseBtn.addEventListener('click', () => {
+    newsModal.classList.remove('active');
+  });
+  newsModal.addEventListener('click', (e) => {
+    if (e.target === newsModal) newsModal.classList.remove('active');
+  });
+
+  // ---------- Feuille "+" (ajout) ----------
+  const plusBtn = document.getElementById('plus-btn');
+  const plusSheet = document.getElementById('plus-sheet');
+  const plusSheetOverlay = document.getElementById('plus-sheet-overlay');
+  const plusSheetHandle = document.getElementById('plus-sheet-handle');
+
+  function openPlusSheet(){
+    plusSheet.classList.add('open');
+    plusSheetOverlay.classList.add('open');
+  }
+  function closePlusSheet(){
+    plusSheet.classList.remove('open');
+    plusSheetOverlay.classList.remove('open');
+  }
+  plusBtn.addEventListener('click', openPlusSheet);
+  plusSheetOverlay.addEventListener('click', closePlusSheet);
+  plusSheetHandle.addEventListener('click', closePlusSheet);
+
+  // ---------- Notification en haut d'écran (ajout) ----------
+  let topNoticeTimer = null;
+  function showTopNotice(message, variant, duration){
+    const el = document.getElementById('top-notice');
+    const textEl = document.getElementById('top-notice-text');
+    clearTimeout(topNoticeTimer);
+    textEl.textContent = message;
+    el.classList.toggle('achievement', variant === 'achievement');
+    el.classList.toggle('like', variant === 'like');
+    // on relance l'animation même si une notif est déjà affichée
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    topNoticeTimer = setTimeout(() => {
+      el.classList.remove('show');
+    }, duration || 10000);
+  }
+
+  // ---------- Trop de discussions sauvegardées (ajout, purement visuel) ----------
+  const TOO_MANY_CHATS_THRESHOLD = 250;
+  const DELETION_WARNING_THRESHOLD = 400;
+  const MAX_CHATS_BEFORE_AUTODELETE = 500;
+  const NOTICE_250_KEY = 'nexo_notice_250_shown';
+  const NOTICE_400_KEY = 'nexo_notice_400_shown';
+
+  function checkTooManyChats(){
+    const count = conversations.length;
+
+    if (count >= TOO_MANY_CHATS_THRESHOLD && localStorage.getItem(NOTICE_250_KEY) !== 'true') {
+      localStorage.setItem(NOTICE_250_KEY, 'true');
+      showTopNotice('⚠️ Pensez à faire le tri dans vos discussions, vous en avez trop !', 'warning');
+    }
+
+    if (count >= DELETION_WARNING_THRESHOLD && localStorage.getItem(NOTICE_400_KEY) !== 'true') {
+      localStorage.setItem(NOTICE_400_KEY, 'true');
+      showTopNotice('⚠️ Attention, NEXO va bientôt commencer à supprimer vos anciennes discussions.', 'warning');
+    }
+  }
+
+  // ---------- Compteur de messages envoyés & cadeau des 1000 messages (ajout) ----------
+  const TOTAL_MESSAGES_KEY = 'nexo_total_messages_sent';
+  const GOLD_UNLOCKED_KEY = 'nexo_gold_unlocked';
+  let totalMessagesSent = parseInt(localStorage.getItem(TOTAL_MESSAGES_KEY) || '0', 10);
+  let goldUnlocked = localStorage.getItem(GOLD_UNLOCKED_KEY) === 'true';
+
+  function unlockGoldTheme(){
+    goldUnlocked = true;
+    localStorage.setItem(GOLD_UNLOCKED_KEY, 'true');
+    const goldBtn = document.querySelector('.color-swatch-btn[data-theme="or"]');
+    if (goldBtn) goldBtn.classList.remove('locked');
+  }
+
+  function incrementSentMessageCount(){
+    totalMessagesSent++;
+    localStorage.setItem(TOTAL_MESSAGES_KEY, totalMessagesSent);
+    if (totalMessagesSent === 1000 && !goldUnlocked) {
+      unlockGoldTheme();
+      showTopNotice('🏆 Bravo, vous avez envoyé 1000 messages en tout ! Allez voir vos couleurs de personnalisation, vous avez un cadeau 🎁', 'achievement');
+    }
+  }
+
+  // ---------- Pièces jointes : galerie / fichier (1 max) ----------
+  const ICONS = {"stars": "data:image/png;base64,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", "camera": "data:image/png;base64,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", "doc": "data:image/png;base64,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"};
+  document.querySelectorAll('img[data-icon]').forEach(el => { el.src = ICONS[el.dataset.icon] || ''; });
+
+  const galleryBtn = document.getElementById('gallery-btn');
+  const fileBtn = document.getElementById('file-btn');
+  const galleryInput = document.getElementById('gallery-input');
+  const fileInput = document.getElementById('file-input');
+  const attachPreview = document.getElementById('attach-preview');
+  const MAX_FILE_BYTES = 1024 * 1024;
+  const MAX_FILE_CHARS = 12000;
+  const BLOCKED_EXT = /\.(mp4|mov|avi|mkv|webm|m4v|3gp|wmv|flv|mpg|mpeg|mp3|wav|ogg|m4a|flac|aac)$/i;
+  let attachment = null;      // { kind:'image', name, data, thumb } ou { kind:'file', name, text, truncated }
+  let attachBusy = false;
+
+  function createAttachmentBlock(att){
+    const box = document.createElement('div');
+    box.className = 'msg-attach';
+    if (att.kind === 'image' && att.thumb) {
+      const img = document.createElement('img');
+      img.src = att.thumb; img.alt = att.name || 'Image';
+      box.appendChild(img);
+    } else {
+      box.appendChild(createFileTile(att.name));
+    }
+    return box;
+  }
+
+  function createFileTile(name){
+    const tile = document.createElement('div');
+    tile.className = 'att-file';
+    const n = document.createElement('span');
+    n.className = 'attach-name';
+    n.textContent = name || 'fichier';
+    const ic = document.createElement('img');
+    ic.className = 'attach-file-icon'; ic.alt = ''; ic.src = ICONS.doc;
+    tile.append(n, ic);
+    return tile;
+  }
+
+  function renderAttachment(){
+    attachPreview.innerHTML = '';
+    if (!attachment) { attachPreview.classList.remove('show'); return; }
+    const wrap = document.createElement('div');
+    wrap.className = 'attach-tile';
+    if (attachment.kind === 'image') {
+      const img = document.createElement('img');
+      img.className = 'thumb'; img.src = attachment.thumb; img.alt = attachment.name;
+      wrap.appendChild(img);
+    } else {
+      wrap.appendChild(createFileTile(attachment.name));
+    }
+    const x = document.createElement('button');
+    x.type = 'button'; x.className = 'attach-remove'; x.setAttribute('aria-label', 'Retirer la pièce jointe');
+    x.textContent = '×';
+    x.addEventListener('click', clearAttachment);
+    wrap.appendChild(x);
+    attachPreview.appendChild(wrap);
+    attachPreview.classList.add('show');
+  }
+
+  function clearAttachment(){
+    attachment = null;
+    renderAttachment();
+  }
+
+  function loadImageEl(file){
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image illisible')); };
+      img.src = url;
+    });
+  }
+
+  function scaleToJpeg(img, maxDim, quality){
+    const r = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.naturalWidth * r));
+    c.height = Math.max(1, Math.round(img.naturalHeight * r));
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);   // fond blanc pour les PNG transparents
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', quality);
+  }
+
+  async function readImageFile(file){
+    const img = await loadImageEl(file);
+    let data = scaleToJpeg(img, 1024, 0.82);
+    if (data.length > 900000) data = scaleToJpeg(img, 768, 0.7);
+    if (data.length > 900000) data = scaleToJpeg(img, 512, 0.6);
+    return { data, thumb: scaleToJpeg(img, 240, 0.7) };
+  }
+
+  async function handlePickedFile(file, fromGallery){
+    if (!file || attachBusy) return;
+    if (elisaMode) { showTopNotice("Les pièces jointes sont désactivées avec ELISA 0.4.", null, 4000); return; }
+    if (attachment) { showTopNotice("Une seule pièce jointe à la fois. Retire l'actuelle avec la croix.", null, 4000); return; }
+    const name = file.name || 'fichier';
+    const type = file.type || '';
+    if (type.startsWith('video/') || type.startsWith('audio/') || BLOCKED_EXT.test(name)) {
+      showTopNotice("Les vidéos et les fichiers audio ne sont pas acceptés.", null, 4000); return;
+    }
+    attachBusy = true;
+    try {
+      if (type.startsWith('image/')) {
+        const r = await readImageFile(file);
+        attachment = { kind: 'image', name, data: r.data, thumb: r.thumb };
+      } else if (fromGallery) {
+        showTopNotice("Choisis une image dans la galerie.", null, 4000); return;
+      } else {
+        if (file.size > MAX_FILE_BYTES) { showTopNotice("Fichier trop lourd (1 Mo maximum).", null, 4000); return; }
+        const txt = await file.text();
+        if (txt.slice(0, 4000).includes('\u0000') || (txt.match(/\uFFFD/g) || []).length > 5) {
+          showTopNotice("Ce type de fichier ne peut pas être lu (PDF, Word, archive…). Envoie une image, du texte ou du code.", null, 6000); return;
+        }
+        attachment = { kind: 'file', name, text: txt.slice(0, MAX_FILE_CHARS), truncated: txt.length > MAX_FILE_CHARS };
+      }
+      renderAttachment();
+    } catch (e) {
+      showTopNotice("Impossible de lire ce fichier.", null, 4000);
+    } finally {
+      attachBusy = false;
+    }
+  }
+
+  galleryBtn.addEventListener('click', () => { if (elisaMode) return; closePlusSheet(); galleryInput.click(); });
+  fileBtn.addEventListener('click', () => { if (elisaMode) return; closePlusSheet(); fileInput.click(); });
+  galleryInput.addEventListener('change', () => { const f = galleryInput.files[0]; galleryInput.value = ''; handlePickedFile(f, true); });
+  fileInput.addEventListener('change', () => { const f = fileInput.files[0]; fileInput.value = ''; handlePickedFile(f, false); });
+
+  // ---------- Envoi de message ----------
+  const input = document.getElementById('msg-input');
+  const sendBtn = document.getElementById('send-btn');
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  // Anti-spam : un envoi à la fois (peu importe le chat affiché), + délai minimum entre deux envois.
+  // Ça reste une protection côté client (donc contournable via la console du navigateur) : la vraie
+  // protection anti-spam doit se faire côté serveur (nexoagi.fr), en limitant les requêtes par
+  // session/IP. Ce verrou empêche déjà tout le spam "normal" (clics rapides, changement de chat pendant
+  // une requête en cours, etc.).
+  let isSending = false;
+  let lastSendTimestamp = 0;
+  const MIN_SEND_INTERVAL_MS = 1200;
+
+  async function sendMessage(){
+    const now = Date.now();
+    if (isSending) return;
+    if (now - lastSendTimestamp < MIN_SEND_INTERVAL_MS) return;
+
+    const text = input.value.trim();
+    const att = elisaMode ? null : attachment;
+    if (!text && !att) return;
+
+    if (!currentChatId) createNewChat();
+    let chat = getCurrentChat();
+
+    // Si c'est le premier message, on enlève l'empty state, on nomme le chat et on le
+    // fait passer de "brouillon" à "sauvegardé" dans la liste des conversations.
+    if (chat.messages.length === 0) {
+      messagesEl.innerHTML = '';
+      const titleSrc = text || (att ? att.name : '');
+      chat.title = titleSrc.length > 30 ? titleSrc.slice(0, 30) + '...' : titleSrc;
+      if (draftChat && draftChat.id === chat.id) {
+        conversations.unshift(chat);
+        draftChat = null;
+        // Au-delà de 500 discussions sauvegardées, on supprime la plus ancienne
+        // à chaque nouvelle discussion créée, pour garder une liste bornée.
+        if (conversations.length > MAX_CHATS_BEFORE_AUTODELETE) {
+          conversations.pop();
+        }
+      }
+    }
+
+    isSending = true;
+    lastSendTimestamp = now;
+
+    const userMsg = { role: 'user', content: text };
+    if (att) userMsg.attachment = att.kind === 'image' ? { kind: 'image', name: att.name, thumb: att.thumb } : { kind: 'file', name: att.name };
+    chat.messages.push(userMsg);
+    const userMsgIndex = chat.messages.length - 1; // pour y accrocher la réaction, une fois reçue
+    saveConversations();
+    renderChatList();
+    checkTooManyChats();
+    incrementSentMessageCount();
+
+    const userBubbleEl = appendBubble('user', text, true, null, userMsg.attachment || null);
+    clearAttachment();
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    showThinking();
+
+    try {
+      // Le mode ELISA (génération d'image) appelle /chat-image, qui n'attend que le
+      // message (pas d'historique ni de mémoire côté serveur pour la génération d'image).
+      const requestBody = elisaMode
+        ? { message: text }
+        : {
+            message: text,
+            attachment: att ? (att.kind === 'image'
+              ? { type: 'image', name: att.name, data: att.data }
+              : { type: 'file', name: att.name, text: att.text, truncated: att.truncated }) : undefined,
+            history: chat.messages.map(m => ({ role: m.role, content: m.content })),
+            max_memory: parseInt(maxMemoryValue),
+            session_id: NEXO_SESSION_ID
+          };
+
+      const response = await fetch(getActiveApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) throw new Error('Erreur API: ' + response.status);
+
+      const data = await response.json();
+      const reply = data.reply || data.response || data.message || "(réponse vide)";
+
+      // ---------- Fallback automatique PRO -> FLASH (ajout) ----------
+      // Le serveur Flask bascule lui-même sur le port 8082 (Flash) quand le port 8081 (Pro)
+      // ne répond pas, et renvoie fallback: true + notice: "...". On répercute ça côté UI :
+      // on affiche la notif (même style que les notifs "trop de discussions" / "1000 messages")
+      // et on bascule le sélecteur de modèle sur Flash pour que les prochains envois y aillent direct.
+      // (ne s'applique pas au mode ELISA, qui n'a pas de bascule Pro/Flash)
+      if (!elisaMode && data.fallback === true) {
+        showTopNotice(data.notice || 'NEXO PRO est beaucoup demandé. Une nouvelle tentative a etait faite.', 'warning');
+        if (!flashMode) {
+          flashMode = true;
+          localStorage.setItem(FLASH_STORAGE_KEY, 'true');
+          applyFlashModeIndicators();
+        }
+      }
+
+      hideThinking();
+
+      const imageUrl = elisaMode ? (data.image_url || null) : null;
+      await appendBubbleAnimated('ia', reply, imageUrl);
+
+      // Badge de réaction Emoji (ajout) : si le serveur renvoie une réaction pour
+      // ce message, on l'accroche sous la bulle utilisateur correspondante.
+      if (!elisaMode && data.reaction) {
+        attachReactionBadge(userBubbleEl, data.reaction);
+        if (chat.messages[userMsgIndex]) {
+          chat.messages[userMsgIndex].reaction = data.reaction;
+        }
+      }
+
+      const iaMessage = { role: 'ia', content: reply };
+      if (imageUrl) iaMessage.image_url = imageUrl;
+      chat.messages.push(iaMessage);
+      saveConversations();
+
+    } catch (err) {
+      hideThinking();
+      appendBubble('ia', "⚠️ Impossible de contacter NEXO (" + err.message + "). Vérifie que le serveur tourne sur " + "https://api.nexoagi.fr/chat");
+    } finally {
+      sendBtn.disabled = false;
+      isSending = false;
+    }
+  }
+
+  // ---------- Mode Flash (ajout) ----------
+  const FLASH_STORAGE_KEY = "nexo_flash_mode";
+  const API_URL_FLASH = "https://api.nexoagi.fr/chat-flash";
+
+  let flashMode = localStorage.getItem(FLASH_STORAGE_KEY) === 'true';
+
+  const topbarSub = document.getElementById('topbar-sub');
+
+  // ---------- Mode Pro (ajout) ----------
+
+  // ---------- Mode ELISA (ajout — génération d'image, connecté à /chat-image du server.py) ----------
+  const ELISA_STORAGE_KEY = "nexo_elisa_mode";
+  const API_URL_ELISA = "https://api.nexoagi.fr/chat-image";
+  const API_URL_LIKE = "https://api.nexoagi.fr/like";
+
+  let elisaMode = localStorage.getItem(ELISA_STORAGE_KEY) === 'true';
+  // Un seul mode actif à la fois : si jamais les deux étaient enregistrés, ELISA prime au chargement
+  // puis on nettoie flashMode pour rester cohérent.
+  if (elisaMode && flashMode) { flashMode = false; localStorage.setItem(FLASH_STORAGE_KEY, 'false'); }
+
+
+  function getActiveApiUrl(){
+    if (elisaMode) return API_URL_ELISA;
+    return flashMode ? API_URL_FLASH : API_URL;
+  }
+
+  function getBrandName(){
+    if (elisaMode) return 'ELISA';
+    return flashMode ? 'NEXO FLASH' : 'NEXO';
+  }
+
+  // ---------- Sélecteur de modèle (barre du haut) ----------
+  const MODEL_LABELS = { pro: 'Pro 1.1', flash: 'Flash 0.6', elisa: 'ELISA 0.4' };
+  const modelBtn = document.getElementById('model-btn');
+  const modelBtnName = document.getElementById('model-btn-name');
+  const modelMenu = document.getElementById('model-menu');
+  const modelOpts = modelMenu.querySelectorAll('.model-opt');
+
+  function currentModel(){ return elisaMode ? 'elisa' : (flashMode ? 'flash' : 'pro'); }
+
+  function applyFlashModeIndicators(){
+    if (elisaMode) {
+      topbarSub.textContent = 'génération d\'image';
+    } else {
+      topbarSub.textContent = flashMode ? 'toujours plus rapide' : 'toujours prêt à discuter';
+    }
+    topbarTitle.textContent = getBrandName();
+
+    const cur = currentModel();
+    modelBtnName.textContent = MODEL_LABELS[cur];
+    modelOpts.forEach(o => {
+      const on = o.dataset.model === cur;
+      o.classList.toggle('active', on);
+      o.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    // ELISA (génération d'image) : pas de pièces jointes
+    [galleryBtn, fileBtn].forEach(b => {
+      b.disabled = elisaMode;
+      b.querySelector('.flash-btn-desc').textContent = elisaMode ? 'Indisponible avec ELISA 0.4' : b.dataset.desc;
+    });
+    if (elisaMode && attachment) clearAttachment();
+  }
+
+  function closeModelMenu(){
+    modelMenu.classList.remove('open');
+    modelBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function setModel(m){
+    flashMode = (m === 'flash');
+    elisaMode = (m === 'elisa');
+    localStorage.setItem(FLASH_STORAGE_KEY, flashMode ? 'true' : 'false');
+    localStorage.setItem(ELISA_STORAGE_KEY, elisaMode ? 'true' : 'false');
+    closeModelMenu();
+    applyFlashModeIndicators();
+    renderMessages(); // on garde la même discussion, on rafraîchit juste l'affichage (nom de marque, etc.)
+  }
+
+  modelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !modelMenu.classList.contains('open');
+    modelMenu.classList.toggle('open', open);
+    modelBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  modelOpts.forEach(o => o.addEventListener('click', (e) => { e.stopPropagation(); setModel(o.dataset.model); }));
+  document.addEventListener('click', (e) => { if (!modelMenu.contains(e.target)) closeModelMenu(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModelMenu(); });
+  applyFlashModeIndicators();
+
+  // ============================================
+  // ---------- COMPTE & RÉGLAGES (ajout) ----------
+  // ============================================
+  const USERNAME_STORAGE_KEY = "nexo_username";
+  const THEME_STORAGE_KEY = "nexo_theme";
+  const MEMORY_STORAGE_KEY = "nexo_max_memory";
+
+  // -- Ouverture / fermeture de la modale Compte & Réglages --
+  const accountRow = document.getElementById('account-row');
+  const settingsModal = document.getElementById('settings-modal');
+  const settingsCloseBtn = document.getElementById('settings-close-btn');
+
+  accountRow.addEventListener('click', () => {
+    settingsModal.classList.add('active');
+  });
+  settingsCloseBtn.addEventListener('click', () => {
+    settingsModal.classList.remove('active');
+  });
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) settingsModal.classList.remove('active');
+  });
+
+  // -- Onglets Style & Couleurs / Réglages IA & Mémoire --
+  const settingsTabs = document.querySelectorAll('.settings-tab');
+  const settingsPanels = document.querySelectorAll('.settings-panel');
+
+  settingsTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      settingsTabs.forEach(t => t.classList.remove('active'));
+      settingsPanels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // -- Nom d'utilisateur --
+  const usernameInput = document.getElementById('username-input');
+  const accountUsernameDisplay = document.getElementById('account-username-display');
+
+  function loadUsername(){
+    const saved = localStorage.getItem(USERNAME_STORAGE_KEY) || '';
+    usernameInput.value = saved;
+    accountUsernameDisplay.textContent = saved || 'Utilisateur';
+  }
+
+  usernameInput.addEventListener('input', () => {
+    const val = usernameInput.value.trim();
+    localStorage.setItem(USERNAME_STORAGE_KEY, val);
+    accountUsernameDisplay.textContent = val || 'Utilisateur';
+  });
+
+  loadUsername();
+
+  // -- Thème de couleur (Style & Couleurs) --
+  const THEMES = {
+    normal: { accent: "#5b8def", soft: "rgba(91,141,239,0.16)" },
+    orange: { accent: "#ff8c42", soft: "rgba(255,140,66,0.15)" },
+    vert:   { accent: "#4caf7d", soft: "rgba(76,175,125,0.15)" },
+    violet: { accent: "#9333ea", soft: "rgba(147,51,234,0.15)" },
+    or:     { accent: "#caa23a", soft: "rgba(202,162,58,0.18)" }
+  };
+  const tabDotStyle = document.getElementById('tab-dot-style');
+  const colorSwatchBtns = document.querySelectorAll('.color-swatch-btn');
+
+  function applyTheme(themeName){
+    const theme = THEMES[themeName] || THEMES.normal;
+    document.documentElement.style.setProperty('--accent', theme.accent);
+    document.documentElement.style.setProperty('--accent-soft', theme.soft);
+    colorSwatchBtns.forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.theme === themeName);
+    });
+    if (tabDotStyle) tabDotStyle.style.background = theme.accent;
+  }
+
+  function selectTheme(themeName){
+    localStorage.setItem(THEME_STORAGE_KEY, themeName);
+    applyTheme(themeName);
+  }
+
+  colorSwatchBtns.forEach(btn => {
+    btn.addEventListener('click', () => selectTheme(btn.dataset.theme));
+  });
+
+  // Débloque visuellement le cadeau "thème or" si déjà obtenu lors d'une session précédente
+  if (goldUnlocked) {
+    const goldBtn = document.querySelector('.color-swatch-btn[data-theme="or"]');
+    if (goldBtn) goldBtn.classList.remove('locked');
+  }
+
+  applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'normal');
+
+  // -- Mémoire de discussion (Réglages de l'IA & Mémoire) --
+  const MEMORY_LEVELS = [
+    { label: '0 message',  desc: "Mémoire désactivée : NEXO ne garde aucun contexte entre les messages." },
+    { label: '3 messages',  desc: "Temps de réflexion légèrement plus long, mais NEXO garde en mémoire le dernier message." },
+    { label: '6 messages', desc: "Réflexion plus longue, adaptée à des projets plus ambitieux." },
+    { label: '10 messages', desc: "Réflexion longue, pour des discussions et des projets naturels, avec des questions mieux formulées." }
+  ];
+
+  let storedMemory = localStorage.getItem(MEMORY_STORAGE_KEY);
+  let maxMemoryValue = (storedMemory === null) ? 3 : parseInt(storedMemory);
+
+  const memorySlider = document.getElementById('memory-slider');
+  const memoryDesc = document.getElementById('memory-desc');
+  const memoryValueLabel = document.getElementById('memory-value-label');
+
+  function updateMemoryDisplay(){
+    const lvl = MEMORY_LEVELS[maxMemoryValue];
+    memoryValueLabel.textContent = lvl.label;
+    memoryDesc.textContent = lvl.desc;
+  }
+
+  memorySlider.value = maxMemoryValue;
+  updateMemoryDisplay();
+
+  memorySlider.addEventListener('input', () => {
+    maxMemoryValue = parseInt(memorySlider.value);
+    localStorage.setItem(MEMORY_STORAGE_KEY, maxMemoryValue);
+    updateMemoryDisplay();
+  });
+
+  // -- Vider la mémoire --
+  const clearMemoryBtn = document.getElementById('clear-memory-btn');
+
+  clearMemoryBtn.addEventListener('click', async () => {
+    const originalText = clearMemoryBtn.textContent;
+    clearMemoryBtn.disabled = true;
+    clearMemoryBtn.textContent = 'Suppression...';
+    try {
+      await fetch('/reset-memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: NEXO_SESSION_ID })
+      });
+      clearMemoryBtn.textContent = 'Mémoire vidée ✓';
+    } catch (e) {
+      clearMemoryBtn.textContent = 'Erreur, réessaie';
+    } finally {
+      setTimeout(() => {
+        clearMemoryBtn.textContent = originalText;
+        clearMemoryBtn.disabled = false;
+      }, 1500);
+    }
+  });
+
+  // ---------- Init ----------
+  createNewChat();
+
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
